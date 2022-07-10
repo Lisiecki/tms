@@ -1,0 +1,38 @@
+// author = Dennis Lisiecki
+.name "lisiecki-fig-4-1.net"
+.type LPN
+.description "Petri net from Figure 4.1 in Dennis Lisiecki master thesis"
+
+.places
+ps1,1
+ps2,1
+ps3,1
+ps4,1
+pe1,2
+pe2,2
+pe3,2
+pe4,2
+pe5,2
+
+.transitions
+t1
+t2
+t3
+t4
+t5
+t6
+
+.flows
+t1: pe1 -> pe2
+t2: pe1 -> pe3
+t3: ps1,pe2 -> ps2,pe4
+t4: ps1,pe3 -> ps2,pe5
+t5: ps2 -> ps3
+t6: ps2 -> ps4
+
+.initial_marking
+ps1,pe1
+
+.bad_markings
+ps4,pe4
+ps3,pe5
