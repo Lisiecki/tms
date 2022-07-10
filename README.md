@@ -1,2 +1,2 @@
-# Testing finite-memory strategies (TMS)
-Testing finite-memory strategies (TMS) for Petri games
+# Testing finite-memory strategies for Petri games (TMS)
+Testing finite-memory strategies for Petri games
