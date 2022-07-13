@@ -29,8 +29,11 @@ class ReachabilityGraph:
 
     def check_safety(self,bad_markings):
         for s in self.states:
-            if omega(s) in bad_markings:
-                print("Safety property violatet at ", omega(s))
+            bad = set(marking for marking in bad_markings if omega(s).issuperset(marking))
+            if len(bad) > 0:
+                print("Safety property violatet at: ", s)
+            #if omega(s) in bad_markings:
+            #    print("Safety property violatet at ", omega(s))
 
     def check_determinism(self):
         for player in system_indices:
@@ -181,14 +184,11 @@ class Flow:
 
 def max(counterclass,t):
     indices = ind(t)
-#    print(indices)
 
     for relation in counterclass:
-#        print(relation)
         if relation[0].player in indices and relation[2].player in indices and relation[1] == "<": 
             indices.remove(relation[0].player)
 
-#    print(indices)
     return indices
 
 def ind(t):
@@ -202,13 +202,12 @@ def ind(t):
     return players
         
 def next_memstate(memstate):
-    # TODO test in Petri game with loop if this really does work!!!11!
     for f in flows:
         t_with_lkm = set((f.t,frozenset(memstate.LKM[i])) for i in ind(f.t))
+        system_transitions = set(t for player in system_indices for t in transitions[player])
 
-        if (f.t in commitmentset or not t_with_lkm.isdisjoint(commitmentset)) and f.start.issubset(omega(memstate)):
+        if (f.t in commitmentset or f.t not in system_transitions or not t_with_lkm.isdisjoint(commitmentset)) and f.start.issubset(omega(memstate)):
             already_there = False
-            #print("in cs: ", f.t)
             new_memstate = copy.deepcopy(memstate)
             new_memstate.update(f)
             
@@ -425,7 +424,7 @@ def main(argv):
     find_reachable_markings(initial)
 
     print("system players: ", system_indices)
-    print("system players: ", environment_indices)
+    print("environment players: ", environment_indices)
 
     s0 = MemState(initials,counters)
     ltscsmem.add_state(s0)
