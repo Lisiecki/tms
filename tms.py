@@ -1,6 +1,7 @@
 import sys, getopt
 import copy
 import config
+import time
 
 flows = set()
 initial = set()
@@ -13,6 +14,7 @@ reachability_graph = set()
 # Tells us which indices belong to system players
 system_indices = set()
 environment_indices = set()
+log_level = 1
 
 class ReachabilityGraph:
 
@@ -28,35 +30,45 @@ class ReachabilityGraph:
         self.edges.add(edge)
 
     def check_safety(self,bad_markings):
+        # TODO better say which edge brings us to bad marking
         for s in self.states:
             bad = set(marking for marking in bad_markings if omega(s).issuperset(marking))
             if len(bad) > 0:
-                print("Safety property violatet at: ", s)
-            #if omega(s) in bad_markings:
-            #    print("Safety property violatet at ", omega(s))
+                if log_level == 0:
+                    print("Safety property violatet at: ", s)
+                elif log_level == 1:
+                    print("Safety property violatet at: ", omega(s))
 
     def check_determinism(self):
         for player in system_indices:
             for edge in self.edges:
-                edges = set(e for e in self.edges.difference({edge}) if e[1] in transitions[player])
-                state = (edge[0].LKM,edge[0].C)
-                states = list((e[0].LKM,e[0].C) for e in edges)
-                players = ind(edge[1])
+                if edge[1] in transitions[player]:
+                    edges = set(e for e in self.edges.difference({edge}) if e[1] in transitions[player])
+                    state = (edge[0].LKM,edge[0].C)
+                    states = list((e[0].LKM,e[0].C) for e in edges)
 
-                if state in states and players.issuperset(system_indices):
-                    print("Determinism property violatet at ", edge[1], state)
+                    if state in states:
+                        if log_level == 0:
+                            print("Determinism property violatet at ", edge[1], state)
+                        elif log_level == 1:
+                            print("Determinism property violatet at ", edge[1], omega(edge[0]))
+
 
     def check_deadlock_avoiding(self):
         # Create a set of every state that does not enable any transition
-        markings = set(omega(state) for state in self.states)
-        edge_markings = set(omega(edge[0]) for edge in self.edges)
-        markings = markings.difference(edge_markings)
+        states = set(state for state in self.states)
+        edge_states = set(edge[0] for edge in self.edges)
+        states = states.difference(edge_states)
+
+        system_transitions = set(t for player in system_indices for t in transitions[player])
 
         for f in flows:
-            deadlocks_at = set(marking for marking in markings if f.start.issubset(marking))
-            if len(deadlocks_at) > 0:
-                # TODO output state instead of marking
-                print("Deadlock avoiding property violatet at ", deadlocks_at)
+            deadlocks_at = set(state for state in states if f.t in system_transitions and f.start.issubset(omega(state)))
+            for deadlock in deadlocks_at:
+                if log_level == 0:
+                    print("Deadlock avoiding property violatet at: ", f.t, ":",deadlock)
+                elif log_level == 1:
+                    print("Deadlock avoiding property violatet at: ", f.t, ":",omega(deadlock))
 
 class Counter:
     def __init__(self,token,player):
@@ -210,17 +222,13 @@ def next_memstate(memstate):
             already_there = False
             new_memstate = copy.deepcopy(memstate)
             new_memstate.update(f)
-            
+            ltscsmem.add_edge(memstate,new_memstate,f.t)
+
+            # terminate if memory state is already in reachability graph
             states = [(state.LKM,state.C) for state in ltscsmem.states if omega(state) == omega(new_memstate)]
             state = (new_memstate.LKM,new_memstate.C)
+            already_there = set(s[0] == state[0] for s in states)
 
-                
-            for s in states:
-                if s[0] == state[0] and s[0] == state[0]:
-                    already_there = True
-                    
-            ltscsmem.add_edge(memstate,new_memstate,f.t)
-            # TODO make it nicer!
             if not already_there:
                 ltscsmem.add_state(new_memstate)
                 next_memstate(new_memstate)
@@ -282,8 +290,10 @@ def init_counters(n):
 ltscsmem = ReachabilityGraph()
 
 def main(argv):
+    start = time.time()
     input_file = config.input_file
     output_file = config.output_file
+    log_level = config.log_level
 
     try:
         opts, args = getopt.getopt(argv,"i:o:s:",["in=","out="])
@@ -435,7 +445,13 @@ def main(argv):
     ltscsmem.check_deadlock_avoiding()
     
     for state in ltscsmem.states:
-        print(state)
+        if log_level == 0:
+            print(state)
+        elif log_level == 1:
+            print(omega(state))
+
+    end = time.time()
+    print("Time : ", end - start)
 
 if __name__ == "__main__":
     main(sys.argv[1:])
