@@ -30,14 +30,17 @@ class ReachabilityGraph:
         self.edges.add(edge)
 
     def check_safety(self,bad_markings):
-        # TODO better say which edge brings us to bad marking
-        for s in self.states:
-            bad = set(marking for marking in bad_markings if omega(s).issuperset(marking))
+        bad_markings = set()
+        for edge in self.edges:
+            bad = set(marking for marking in bad_markings if omega(edge[2]).issuperset(marking))
             if len(bad) > 0:
                 if log_level == 0:
-                    print("Safety property violatet at: ", s)
+                    print("Safety property violatet at: ", edge[1], ":", edge[2])
                 elif log_level == 1:
-                    print("Safety property violatet at: ", omega(s))
+                    print("Safety property violatet at: ", edge[1], ":", omega(edge[2]))
+                elif log_level == 2:
+                    print("Safety property violatet at: ", edge[1], ":", edge[0].LKM)
+
 
     def check_determinism(self):
         for player in system_indices:
@@ -52,6 +55,8 @@ class ReachabilityGraph:
                             print("Determinism property violatet at ", edge[1], state)
                         elif log_level == 1:
                             print("Determinism property violatet at ", edge[1], omega(edge[0]))
+                        elif log_level == 2:
+                            print("Determinism property violatet at ", edge[1], ":", edge[0].LKM)
 
 
     def check_deadlock_avoiding(self):
@@ -69,6 +74,10 @@ class ReachabilityGraph:
                     print("Deadlock avoiding property violatet at: ", f.t, ":",deadlock)
                 elif log_level == 1:
                     print("Deadlock avoiding property violatet at: ", f.t, ":",omega(deadlock))
+                elif log_level == 2:
+                    print("Deadlock avoiding property violatet at: ", f.t, ":",deadlock.LKM)
+
+
 
 class Counter:
     def __init__(self,token,player):
@@ -108,14 +117,25 @@ class MemState:
     def update_lkm(self,f):
         for i in ind(f.t):
             new_lkm = set()
-            for j in range(len(self.LKM)):
-                if j in ind(f.t):
-                    new_p = places[j].intersection(f.end)
-                    new_lkm.update(new_p)
-                else:
-                    m = list(max(self.C[j],f.t))[0]
-                    new_p = places[j].intersection(self.LKM[m])
-                    new_lkm.update(new_p) 
+            if True:
+                for j in system_indices.union(environment_indices):
+                    if j in ind(f.t):
+                        new_p = places[j].intersection(f.end)
+                        new_lkm.update(new_p)
+                    else:
+                        m = list(max(self.C[j],f.t))[0]
+                        new_p = places[j].intersection(self.LKM[m])
+                        new_lkm.update(new_p) 
+
+            if False:
+                for j in range(len(self.LKM)):
+                    if j in ind(f.t):
+                        new_p = places[j].intersection(f.end)
+                        new_lkm.update(new_p)
+                    else:
+                        m = list(max(self.C[j],f.t))[0]
+                        new_p = places[j].intersection(self.LKM[m])
+                        new_lkm.update(new_p) 
 
             self.LKM[i] = new_lkm
         
@@ -123,10 +143,11 @@ class MemState:
         n = len(self.C)
 
         for i in range(n):
+            m = list(max(self.C[i],f.t))[0]
+
             for c_relation in self.C[i]:
                 k = c_relation[0].player
                 l = c_relation[2].player
-                m = list(max(self.C[i],f.t))[0]
                 self.C[i].remove(c_relation)
 
                 if c_relation[1] == "<" and k not in ind(f.t):
@@ -166,7 +187,7 @@ class MemState:
                         elif c_l_m_relation[1] == "<" and c_l_m_relation[0].player == m and c_l_m_relation[2].player == l:
                             c_relation = (c_relation[0], "<", c_relation[2])
                             break
-                    
+
                 self.C[i].add(c_relation)
 
     def __copy__(self):
@@ -205,15 +226,57 @@ def max(counterclass,t):
 
 def ind(t):
     players = set()
-    for f in flows:
-        if t == f.t:
-            for i in range(len(places)):
-                if len(places[i].intersection(f.start)) > 0:
-                    players.add(i)
+    players = set(player for player in system_indices.union(environment_indices) if t in transitions[player])
+    
+    if False:
+        for f in flows:
+            if t == f.t:
+                for i in range(len(places)):
+                    if len(places[i].intersection(f.start)) > 0:
+                        players.add(i)
 
     return players
-        
+
 def next_memstate(memstate):
+    for f in flows:
+        if f.start.issubset(omega(memstate)):
+            # check for every system player who fires that transition
+            # if it enables this transition
+            players = set(player for player in system_indices if player in ind(f.t))
+            not_enabled = False
+            
+            for player in players:
+                place = set(f.start.intersection(places[player])).pop()
+                cs = (f.t,place)
+
+                if len(cs) > 0 and cs in commitmentset:
+                    continue
+    
+                cs = (f.t,place,frozenset(memstate.LKM[player]))
+
+                if  len(cs) > 0 and cs in commitmentset:
+                    continue
+
+                not_enabled = True
+                break
+
+            if not_enabled == False:
+                already_there = False
+                new_memstate = copy.deepcopy(memstate)
+                new_memstate.update(f)
+                ltscsmem.add_edge(memstate,new_memstate,f.t)
+
+                # terminate if memory state is already in reachability graph
+                states = [(state.LKM,state.C) for state in ltscsmem.states if omega(state) == omega(new_memstate)]
+                state = (new_memstate.LKM,new_memstate.C)
+                already_there = set(s[0] == state[0] for s in states)
+
+                if not already_there:
+                    ltscsmem.add_state(new_memstate)
+                    next_memstate(new_memstate)
+                
+        
+def ext_memstate(memstate):
     for f in flows:
         t_with_lkm = set((f.t,frozenset(memstate.LKM[i])) for i in ind(f.t))
         system_transitions = set(t for player in system_indices for t in transitions[player])
@@ -373,9 +436,8 @@ def main(argv):
                 player = line.strip().split(":")[1]
                 player_type = line.strip().split(":")[2]
 
-                if int(player)+1 > len(places):
-                    for i in range(int(player)+1-len(places)):
-                        places.append(set())
+                while int(player) >= len(places):
+                    places.append(set())
 
                 places[int(player)].add(place)
 
@@ -390,9 +452,8 @@ def main(argv):
                 players = line.strip().split(":")[1]
                 players = players.split(",")
 
-                if int(player)+1 > len(transitions):
-                    for i in range(int(player)+1-len(transitions)):
-                        transitions.append(set())
+                while int(player)+1 >= len(transitions):
+                    transitions.append(set())
                 
                 for player in players:
                     transitions[int(player)].add(transition)
@@ -416,13 +477,13 @@ def main(argv):
             if strategy_flag:
                 cs = line.strip().split(":")
                 t = cs[0]
-                if len(cs) > 1:
-                    lkm = frozenset(cs[1].strip().split(","))
-                    commitmentset.add((t,lkm))
+                p = cs[1]
+                if len(cs) == 3:
+                    lkm = frozenset(cs[2].strip().split(","))
+                    commitmentset.add((t,p,lkm))
                 else:
-                    commitmentset.add(t)
+                    commitmentset.add((t,p))
     
-    print(commitmentset)
     n = len(system_indices) + len(environment_indices)
     initials = []
     for i in range(n):
@@ -449,6 +510,8 @@ def main(argv):
             print(state)
         elif log_level == 1:
             print(omega(state))
+        elif log_level == 2:
+            print(state.LKM)
 
     end = time.time()
     print("Time : ", end - start)

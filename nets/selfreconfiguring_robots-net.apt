@@ -1,0 +1,97 @@
+// author = Dennis Lisiecki
+.name "lisiecki-fig-4-1.net"
+.type LPN
+.description "Petri net from Figure 4.1 in Dennis Lisiecki master thesis"
+
+.places
+r0t0:0:s
+r0d0p00:4:s
+r0d0p01:4:s
+r0d0p02:4:s
+r0d1p00:5:s
+r0d1p01:5:s
+r0d1p02:5:s
+r0t1:0:s
+r0b0:0:s
+r0b1:0:s
+r1t0:1:s
+r1d0p00:6:s
+r1d0p01:6:s
+r1d0p02:6:s
+r1d1p00:7:s
+r1d1p01:7:s
+r1d1p02:7:s
+r1t1:1:s
+r1b0:1:s
+r1b1:1:s
+prog:2:s
+change0:2:s
+change1:2:s
+env0:3:e
+enva1:3:e
+envb1:3:e
+
+
+.transitions
+t0:0,4
+t1:0,5
+t2:2
+t3:0,2
+t4:0,2
+t5:1,6
+t6:1,7
+t7:2
+t8:1,2
+t9:1,2
+t10:3,4
+t11:3,5
+t12:3,6
+t13:3,7
+t14:2,3
+t15:0,1
+t16:0,1
+
+.flows
+t0: r0t0,r0d0p01 -> r0b0,r0d0p02
+t1: r0t1,r0d1p01 -> r0b1,r0d1p02
+t2: change0 -> change1
+t3: r0t0,change0 -> r0t1,change1
+t4: r0t1,change0 -> r0t0,change1
+t5: r1t0,r1d0p01 -> r1b0,r1d0p02
+t6: r1t1,r1d1p01 -> r1b1,r1d1p02
+t7: change1 -> prog
+t8: r1t0,change1 -> r1t1,prog
+t9: r1t1,change1 -> r1t0,prog
+t10: r0d0p00,env0 -> r0d0p01,enva1
+t11: r0d1p00,env0 -> r0d1p01,enva1
+t12: r1d0p00,env0 -> r1d0p01,enva1
+t13: r1d1p00,env0 -> r1d1p01,enva1
+t14: prog,enva1 -> envb1,change0
+t15: r0t0,r1t0 -> r0b0
+t16: r0t1,r1t1 -> r0b1
+
+.initial_marking
+r0t0,r1t1,env0,prog,r0d0p00,r0d1p00,r1d0p00,r1d1p00
+
+.bad_markings
+r0b0
+r0b1
+r1b0
+r1b1
+
+.strategy
+t10:r0d0p00
+t11:r0d1p00
+t12:r1d0p00
+t13:r1d1p00
+t14:prog
+t2:change0:r0t0,r1t1,envb1,change0,r0d0p00,r0d1p01,r1d0p00,r1d1p00
+t2:change0:r0t0,r1t1,envb1,change0,r0d0p00,r0d1p00,r1d0p01,r1d1p00
+t3:change0:r0t0,r1t1,envb1,change0,r0d0p01,r0d1p00,r1d0p00,r1d1p00
+t3:change0:r0t0,r1t1,envb1,change0,r0d0p00,r0d1p00,r1d0p00,r1d1p01
+t3:r0t0
+t7:change1:r0t0,r1t1,envb1,change1,r0d0p00,r0d1p01,r1d0p00,r1d1p00
+t7:change1:r0t0,r1t1,envb1,change1,r0d0p00,r0d1p00,r1d0p01,r1d1p00
+t9:change1:r0t1,r1t1,envb1,change1,r0d0p01,r0d1p00,r1d0p00,r1d1p00
+t9:change1:r0t1,r1t1,envb1,change1,r0d0p00,r0d1p00,r1d0p00,r1d1p01
+t9:r1t1

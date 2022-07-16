@@ -46,9 +46,9 @@ ps4,pe4
 ps3,pe5
 
 .strategy
-t3
-t4
-t5:ps2,pe4
-t6:ps2,pe5
-t7
-t8
+t3:ps1
+t4:ps1
+t5:ps2:ps2,pe4
+t6:ps2:ps2,pe5
+t7:ps3
+t8:ps4
