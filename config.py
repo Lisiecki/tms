@@ -1,5 +1,5 @@
 # input Petri game with strategy and output path for reachability graph
-game = 0
+game = 1
 
 if game == 0:
     input_file = "nets/same_decision_loop-net.apt"

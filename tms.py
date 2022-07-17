@@ -14,7 +14,8 @@ reachability_graph = set()
 # Tells us which indices belong to system players
 system_indices = set()
 environment_indices = set()
-log_level = 1
+log_level = config.log_level
+all_enabled = -1
 
 class ReachabilityGraph:
 
@@ -30,9 +31,8 @@ class ReachabilityGraph:
         self.edges.add(edge)
 
     def check_safety(self,bad_markings):
-        bad_markings = set()
         for edge in self.edges:
-            bad = set(marking for marking in bad_markings if omega(edge[2]).issuperset(marking))
+            bad = set(marking for marking in bad_markings if marking.issubset(omega(edge[2])))
             if len(bad) > 0:
                 if log_level == 0:
                     print("Safety property violatet at: ", edge[1], ":", edge[2])
@@ -144,8 +144,9 @@ class MemState:
 
         for i in range(n):
             m = list(max(self.C[i],f.t))[0]
+            C_copy = self.C[i].copy()
 
-            for c_relation in self.C[i]:
+            for c_relation in C_copy:
                 k = c_relation[0].player
                 l = c_relation[2].player
                 self.C[i].remove(c_relation)
@@ -164,29 +165,22 @@ class MemState:
                     for c_k_m_relation in self.C[i]:
                         if c_k_m_relation[1] == "=" and ((c_k_m_relation[0].player == k and c_k_m_relation[2].player == m) or (c_k_m_relation[0].player == m and c_k_m_relation[2].player == k)):
                             c_relation = (c_relation[0], "=", c_relation[2])
-                            break
                         elif c_k_m_relation[1] == "<" and c_k_m_relation[0].player == k and c_k_m_relation[2].player == m:
                             c_relation = (c_relation[0], "<", c_relation[2])
-                            break
                 elif c_relation[1] == "=" and i not in ind(f.t) and k in ind(f.t) and l not in ind(f.t):
                     for c_l_m_relation in self.C[i]:
                         if c_l_m_relation[1] == "=" and ((c_l_m_relation[0].player == l and c_l_m_relation[2].player == m) or (c_l_m_relation[0].player == m and c_l_m_relation[2].player == l)):
                             c_relation = (c_relation[0], "=", c_relation[2])
-                            break
                         elif c_l_m_relation[1] == "<" and c_l_m_relation[0].player == l and c_l_m_relation[2].player == m:
                             c_relation = (c_relation[2], "<", c_relation[0])
-                            break
                 elif c_relation[1] == "<" and i not in ind(f.t) and k in ind(f.t) and l not in ind(f.t):
                     for c_l_m_relation in self.C[i]:
                         if c_l_m_relation[1] == "=" and ((c_l_m_relation[0].player == l and c_l_m_relation[2].player == m) or (c_l_m_relation[0].player == m and c_l_m_relation[2].player == l)):
                             c_relation = (c_relation[0], "=", c_relation[2])
-                            break
                         elif c_l_m_relation[1] == "<" and c_l_m_relation[0].player == l and c_l_m_relation[2].player == m:
                             c_relation = (c_relation[2], "<", c_relation[0])
-                            break
                         elif c_l_m_relation[1] == "<" and c_l_m_relation[0].player == m and c_l_m_relation[2].player == l:
                             c_relation = (c_relation[0], "<", c_relation[2])
-                            break
 
                 self.C[i].add(c_relation)
 
@@ -216,10 +210,16 @@ class Flow:
         self.end = frozenset(end)
 
 def max(counterclass,t):
-    indices = ind(t)
+    indices = ind(t).copy()
+    if t == "test0":
+        print("call")
 
     for relation in counterclass:
+        if t == "test0":
+            print("relation ", relation)
         if relation[0].player in indices and relation[2].player in indices and relation[1] == "<": 
+            if t == "test0":
+                print("remove ", relation[0].player)
             indices.remove(relation[0].player)
 
     return indices
@@ -244,7 +244,11 @@ def next_memstate(memstate):
             # if it enables this transition
             players = set(player for player in system_indices if player in ind(f.t))
             not_enabled = False
-            
+    
+            if all_enabled == 0 and len(players) > 0:
+                players = {}
+                not_enabled = True
+
             for player in players:
                 place = set(f.start.intersection(places[player])).pop()
                 cs = (f.t,place)
@@ -260,7 +264,7 @@ def next_memstate(memstate):
                 not_enabled = True
                 break
 
-            if not_enabled == False:
+            if not_enabled == False or all_enabled == 1:
                 already_there = False
                 new_memstate = copy.deepcopy(memstate)
                 new_memstate.update(f)
@@ -357,9 +361,11 @@ def main(argv):
     input_file = config.input_file
     output_file = config.output_file
     log_level = config.log_level
+    global all_enabled
+    global bad_markings
 
     try:
-        opts, args = getopt.getopt(argv,"i:o:s:",["in=","out="])
+        opts, args = getopt.getopt(argv,"i:o:a:",["in=","out=","all="])
     except getopt.GetoptError:
         print('Error due to wrong command line arguments!')
         sys.exit(2)
@@ -369,6 +375,8 @@ def main(argv):
             input_file = arg
         elif opt in ('-o', '--out'):
             output_file = arg
+        elif opt in ('-a', '--all'):
+            all_enabled = int(arg)
 
     net_file = open(input_file,"r")
     net_lines = net_file.readlines()
@@ -500,7 +508,7 @@ def main(argv):
     s0 = MemState(initials,counters)
     ltscsmem.add_state(s0)
     next_memstate(s0)
-    
+
     ltscsmem.check_safety(bad_markings)
     ltscsmem.check_determinism()
     ltscsmem.check_deadlock_avoiding()
@@ -515,6 +523,16 @@ def main(argv):
 
     end = time.time()
     print("Time : ", end - start)
+    print("|Q|:", len(ltscsmem.states))
+
+    allplaces = set()
+
+    for player in system_indices.union(environment_indices):
+        allplaces.update(places[player])
+    print("|P|:", len(allplaces))
+    
+    alltransitions = set(edge[1] for edge in ltscsmem.edges)
+    print("|T|:", len(alltransitions))
 
 if __name__ == "__main__":
     main(sys.argv[1:])
