@@ -1,2 +1,2 @@
 # Testing finite-memory strategies for Petri games (TMS)
-Testing finite-memory strategies for Petri games
+TMS stands for Testing Finite-Memory Strategies for Petri Games. TMS builds a reachability graph from a given commitment set for a given Petri game. After building the graph, TMS tests then if the graph satisfies the properties safety, determinism and deadlock avoiding. If yes, then the reachability graph is a winning strategy for the given Petri game. If any of the properties are violated, TMS logs in the terminal which and where in the graph the properties are violated. In order to know how to use TMS read the manual in manual.txt.
