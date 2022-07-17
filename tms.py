@@ -22,6 +22,7 @@ class ReachabilityGraph:
     def __init__(self):
         self.states = set()
         self.edges = set()
+        self.initial = set()
 
     def add_state(self,s):
         self.states.add(s)
@@ -31,6 +32,7 @@ class ReachabilityGraph:
         self.edges.add(edge)
 
     def check_safety(self,bad_markings):
+        # check if safety is violated and which transitions and end states cause the violion
         for edge in self.edges:
             bad = set(marking for marking in bad_markings if marking.issubset(omega(edge[2])))
             if len(bad) > 0:
@@ -43,6 +45,7 @@ class ReachabilityGraph:
 
 
     def check_determinism(self):
+        # check if determinism is violated and which transitions and start states cause the violation
         for player in system_indices:
             for edge in self.edges:
                 if edge[1] in transitions[player]:
@@ -117,31 +120,21 @@ class MemState:
     def update_lkm(self,f):
         for i in ind(f.t):
             new_lkm = set()
-            if True:
-                for j in system_indices.union(environment_indices):
-                    if j in ind(f.t):
-                        new_p = places[j].intersection(f.end)
-                        new_lkm.update(new_p)
-                    else:
-                        m = list(max(self.C[j],f.t))[0]
-                        new_p = places[j].intersection(self.LKM[m])
-                        new_lkm.update(new_p) 
-
-            if False:
-                for j in range(len(self.LKM)):
-                    if j in ind(f.t):
-                        new_p = places[j].intersection(f.end)
-                        new_lkm.update(new_p)
-                    else:
-                        m = list(max(self.C[j],f.t))[0]
-                        new_p = places[j].intersection(self.LKM[m])
-                        new_lkm.update(new_p) 
+            for j in system_indices.union(environment_indices):
+                if j in ind(f.t):
+                    new_p = places[j].intersection(f.end)
+                    new_lkm.update(new_p)
+                else:
+                    m = list(max(self.C[j],f.t))[0]
+                    new_p = places[j].intersection(self.LKM[m])
+                    new_lkm.update(new_p) 
 
             self.LKM[i] = new_lkm
         
     def update_counter(self,f):
         n = len(self.C)
 
+        # update the counter relations of i depending on which player fires the transition t and the current counter relations of i
         for i in range(n):
             m = list(max(self.C[i],f.t))[0]
             C_copy = self.C[i].copy()
@@ -211,29 +204,18 @@ class Flow:
 
 def max(counterclass,t):
     indices = ind(t).copy()
-    if t == "test0":
-        print("call")
 
+    # go through every counter relation of i where both players fire the transition
+    # remove for c_i^k < c_i^l always player k because it has not the maximum counter of i
     for relation in counterclass:
-        if t == "test0":
-            print("relation ", relation)
         if relation[0].player in indices and relation[2].player in indices and relation[1] == "<": 
-            if t == "test0":
-                print("remove ", relation[0].player)
             indices.remove(relation[0].player)
 
     return indices
 
 def ind(t):
-    players = set()
+    # get every player who fires the transition t
     players = set(player for player in system_indices.union(environment_indices) if t in transitions[player])
-    
-    if False:
-        for f in flows:
-            if t == f.t:
-                for i in range(len(places)):
-                    if len(places[i].intersection(f.start)) > 0:
-                        players.add(i)
 
     return players
 
@@ -264,6 +246,7 @@ def next_memstate(memstate):
                 not_enabled = True
                 break
 
+            # create new edge if transition is enabled by the commitment sets
             if not_enabled == False or all_enabled == 1:
                 already_there = False
                 new_memstate = copy.deepcopy(memstate)
@@ -278,28 +261,7 @@ def next_memstate(memstate):
                 if not already_there:
                     ltscsmem.add_state(new_memstate)
                     next_memstate(new_memstate)
-                
-        
-def ext_memstate(memstate):
-    for f in flows:
-        t_with_lkm = set((f.t,frozenset(memstate.LKM[i])) for i in ind(f.t))
-        system_transitions = set(t for player in system_indices for t in transitions[player])
-
-        if (f.t in commitmentset or f.t not in system_transitions or not t_with_lkm.isdisjoint(commitmentset)) and f.start.issubset(omega(memstate)):
-            already_there = False
-            new_memstate = copy.deepcopy(memstate)
-            new_memstate.update(f)
-            ltscsmem.add_edge(memstate,new_memstate,f.t)
-
-            # terminate if memory state is already in reachability graph
-            states = [(state.LKM,state.C) for state in ltscsmem.states if omega(state) == omega(new_memstate)]
-            state = (new_memstate.LKM,new_memstate.C)
-            already_there = set(s[0] == state[0] for s in states)
-
-            if not already_there:
-                ltscsmem.add_state(new_memstate)
-                next_memstate(new_memstate)
-
+               
 def find_reachable_markings(marking):
     for f in flows:
         if f.start.issubset(marking):
@@ -344,6 +306,7 @@ def omega(memstate):
     return frozenset(marking)
 
 def init_counters(n):
+    # the counters are initially always equal
     counterclasses = []
     for i in range(n):
         counterclass = set()
@@ -376,6 +339,7 @@ def main(argv):
         elif opt in ('-o', '--out'):
             output_file = arg
         elif opt in ('-a', '--all'):
+            # use -a 1 to enable all system transitions or -a 0 to disable all system transitions
             all_enabled = int(arg)
 
     net_file = open(input_file,"r")
@@ -499,20 +463,24 @@ def main(argv):
 
     counters = init_counters(n)
     
-    reachable.add(frozenset(initial))
-    find_reachable_markings(initial)
+    #reachable.add(frozenset(initial))
+    #find_reachable_markings(initial)
 
     print("system players: ", system_indices)
     print("environment players: ", environment_indices)
 
+    # build reachability graph
     s0 = MemState(initials,counters)
+    ltscsmem.initial = s0
     ltscsmem.add_state(s0)
     next_memstate(s0)
 
+    # check properties of winning strategies here
     ltscsmem.check_safety(bad_markings)
     ltscsmem.check_determinism()
     ltscsmem.check_deadlock_avoiding()
     
+    # return the reachability graph here
     for state in ltscsmem.states:
         if log_level == 0:
             print(state)
@@ -522,6 +490,8 @@ def main(argv):
             print(state.LKM)
 
     end = time.time()
+    
+    # log TMS performance
     print("Time : ", end - start)
     print("|Q|:", len(ltscsmem.states))
 

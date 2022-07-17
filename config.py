@@ -1,5 +1,5 @@
 # input Petri game with strategy and output path for reachability graph
-game = 1
+game = 3
 
 if game == 0:
     input_file = "nets/same_decision_loop-net.apt"
@@ -17,6 +17,7 @@ if game == 3:
     input_file = "nets/selfreconfiguring_robots-net.apt"
     output_file = "nets/selfreconfiguring_robots-lts.apt"
 
-# 0 := print memory states, 1 := print only markings
-# use 1 if memory states become unreadable
+# 0 := log memory states (gets VERY large for more than 2 players)
+# 1 := log only markings (use this if reachability graph becomes very large!)
+# 2 := log only last known markings (if you want to search for a strategy that uses the last known markings manually, then use this)
 log_level = 1

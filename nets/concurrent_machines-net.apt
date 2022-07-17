@@ -1,7 +1,4 @@
 // author = Dennis Lisiecki
-.name "lisiecki-fig-4-1.net"
-.type LPN
-.description "Petri net from Figure 4.1 in Dennis Lisiecki master thesis"
 
 .places
 s0:0:s

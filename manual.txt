@@ -1,0 +1,27 @@
+*This is a manual for the script tms.py. TMS stands for Testing Finite-Memory Strategies for Petri Games. TMS builds a reachability graph from a given commitment set for a given Petri game. After building the graph, TMS tests then if the graph satisfies the properties safety, determinism and deadlock avoiding. If yes, then the reachability graph is a winning strategy for the given Petri game. If any of the properties are violated, TMS logs in the terminal which and where in the graph the properties are violated.
+*The script works with Python 2.7.18 and 3.8.10 
+*In config.py you can set the input path for the Petri game and select between the examples that are already given.
+*Example Petri games with commitment sets (or strategy) can be found in the folder /nets
+*We define the Petri games by the following rules:
+- .places: place:player:s or e where s := system player place, e := environment player place
+    - players cannot share places!
+- .transitions: transition:player1,player2,...
+    - define every transition only once!
+- .flows: transition: start_place1,... -> end_place2,...
+    - define a flow for every transition also only once!
+    - the number of places at the start and at the end have to be equal!
+- .initial_marking: place_1,...,place_n
+    - define the initial place for every player here
+- .bad_markings: place_1,...
+    - bad marking can be either depict the full bad marking or only a subset of the bad marking. For example if your Petri game has bad places and you don't want to look for every bad marking your game has, then just write the bad places.
+    - only one bad marking per line
+- .strategy: either transition:place or transition:place:lkm(place)
+    - the latter option uses the last known marking of the player that owns the place in order to check if the transition is enabled by the commitment sets.
+    - if system players share a transition, then you have to enable the transition for every one of them seperately
+    - the transitions are for environment players always enabled. Hence, you only have to enable the transitions for system player places
+    - if you enable a transition for a place with both methods, then the transition will always be enabled for that place. So, transition:place overwrites transition:place:lkm(place)
+
+* with the command line option -a 1 you enable the transitions for every system player. Hence, you don't have to enable everything yourself in .strategy if you want to enable every transition.
+    - this will likely result in a violation of the safety and determinism properties
+* with the command line option -a 0 you disable the transitions for every system player. 
+    - this will likely result in a violation of the deadlock avoiding property
